@@ -3,6 +3,7 @@ import { Component, ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, RefreshCw } from 'lucide-react';
+import { secureLogger } from '@/utils/secureLogger';
 
 interface Props {
   children: ReactNode;
@@ -25,7 +26,12 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: any) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // Use secure logger instead of console.error
+    secureLogger.error('ErrorBoundary caught an error', { 
+      error: error.message, 
+      stack: error.stack,
+      componentStack: errorInfo.componentStack 
+    });
   }
 
   handleRetry = () => {

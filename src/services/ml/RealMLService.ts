@@ -2,7 +2,7 @@ import { CandleData } from '@/types/session';
 import { PredictionResult, PredictionConfig } from '@/types/trading';
 import { TechnicalIndicatorService } from '../indicators/TechnicalIndicators';
 import { PatternAnalysisService } from '../patterns/PatternAnalysis';
-import { secureRandom, secureShuffleArray } from '@/utils/secureCrypto';
+import { SecureRandom } from '@/utils/secureCrypto';
 import { logger } from '@/utils/logger';
 
 interface NetworkWeights {
@@ -58,7 +58,7 @@ export class RealMLService {
     // Xavier/Glorot инициализация с безопасным RNG
     const initWeight = (fanIn: number, fanOut: number) => {
       const limit = Math.sqrt(6 / (fanIn + fanOut));
-      return (secureRandom.random() * 2 - 1) * limit;
+      return (SecureRandom.random() * 2 - 1) * limit;
     };
 
     this.weights = {
@@ -223,7 +223,7 @@ export class RealMLService {
     
     for (let epoch = 0; epoch < epochs; epoch++) {
       // SECURITY FIX: Безопасное перемешивание данных
-      const shuffled = secureShuffleArray([...this.trainingData]);
+      const shuffled = SecureRandom.shuffle([...this.trainingData]);
       
       for (let i = 0; i < shuffled.length; i += batchSize) {
         const batch = shuffled.slice(i, i + batchSize);

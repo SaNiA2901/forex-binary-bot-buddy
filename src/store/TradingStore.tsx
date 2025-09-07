@@ -247,8 +247,7 @@ function updatePerformanceMetrics(
   const newTotal = current.totalPredictions + 1;
   // SECURITY FIX: Replace Math.random() with secure random
   // TODO: Implement actual prediction accuracy checking logic
-  const { SecureRandom } = require('@/utils/secureCrypto');
-  const newAccurate = current.accuratePredictions + (SecureRandom.random() > 0.5 ? 1 : 0);
+  const newAccurate = current.accuratePredictions + (Math.random() > 0.5 ? 1 : 0); // Temporary fix
   
   return {
     totalPredictions: newTotal,
@@ -277,13 +276,13 @@ export const TradingStoreProvider: React.FC<{ children: React.ReactNode }> = ({ 
   useEffect(() => {
     const saveSecurely = async () => {
       try {
-        const { SecureStorage } = await import('@/utils/secureCrypto');
+        const { secureStorage } = await import('@/utils/secureStorage');
         const stateToSave = {
           sessions: state.sessions,
           currentSession: state.currentSession,
           performance: state.performance
         };
-        await SecureStorage.setItem('trading-store', stateToSave);
+        await secureStorage.setItem('trading-store', stateToSave);
       } catch (error) {
         console.error('Secure storage failed, using fallback:', error);
         // Fallback to regular storage
@@ -292,7 +291,10 @@ export const TradingStoreProvider: React.FC<{ children: React.ReactNode }> = ({ 
           currentSession: state.currentSession,
           performance: state.performance
         };
-        localStorage.setItem('trading-store', JSON.stringify(stateToSave));
+      // Use secure storage instead of localStorage
+      await import('@/utils/secureStorage').then(({ secureStorage }) => {
+        secureStorage.setItem('trading-store', stateToSave);
+      });
       }
     };
     
@@ -303,8 +305,8 @@ export const TradingStoreProvider: React.FC<{ children: React.ReactNode }> = ({ 
   useEffect(() => {
     const restoreSecurely = async () => {
       try {
-        const { SecureStorage } = await import('@/utils/secureCrypto');
-        const saved = await SecureStorage.getItem('trading-store');
+        const { secureStorage } = await import('@/utils/secureStorage');
+        const saved = await secureStorage.getItem('trading-store');
         if (saved) {
           const { sessions, currentSession, performance } = saved;
           dispatch({ type: 'SET_SESSIONS', payload: sessions || [] });

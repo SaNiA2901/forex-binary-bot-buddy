@@ -11,7 +11,7 @@ interface AuthWrapperProps {
 }
 
 const AuthWrapper = ({ children }: AuthWrapperProps) => {
-  console.log('AuthWrapper rendering...');
+  // Removed console.log for production security
   
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);

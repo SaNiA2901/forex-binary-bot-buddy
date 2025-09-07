@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
 // SECURITY FIX: Use environment variables instead of hardcoded keys
-const SUPABASE_URL = "https://yhthxtppnnumtbfucbpm.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlodGh4dHBwbm51bXRiZnVjYnBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxODc3NDIsImV4cCI6MjA3MTc2Mzc0Mn0.QF7rYW1Uemym6WOW-EMid-rHjO23iRy53lORYSPyFX4";
+const SUPABASE_URL = "https://kscemqgnqpqtukaeadie.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtzY2VtcWducXBxdHVrYWVhZGllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcyNDQ2MjgsImV4cCI6MjA3MjgyMDYyOH0.0pWzxtcIaro6CCyLE0eYnxg1sAAIHAjXrJmnx5AyDzk";
 
 // Validate required environment variables
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {

@@ -4,7 +4,7 @@
  * Separated from monolithic service for better maintainability and testing
  */
 
-import { secureCrypto } from '@/utils/secureCrypto';
+import { SecureRandom } from '@/utils/secureCrypto';
 import { logger } from '@/utils/logger';
 import { errorHandler, ErrorCategory } from '@/utils/errorHandler';
 
@@ -71,7 +71,7 @@ export class NetworkTrainingService {
       // Xavier/Glorot initialization with secure random
       const initWeight = (fanIn: number, fanOut: number) => {
         const limit = Math.sqrt(6 / (fanIn + fanOut));
-        return (secureCrypto.secureRandom.random() * 2 - 1) * limit;
+        return (SecureRandom.random() * 2 - 1) * limit;
       };
 
       const weights: NetworkWeights = {
@@ -205,7 +205,7 @@ export class NetworkTrainingService {
     config: TrainingConfig
   ): Promise<Omit<TrainingMetrics, 'validationAccuracy' | 'validationLoss' | 'trainTime' | 'epoch'>> {
     // Shuffle training data securely
-    const shuffled = secureCrypto.secureShuffleArray([...trainSet]);
+    const shuffled = SecureRandom.shuffle([...trainSet]);
     
     let totalLoss = 0;
     let correctPredictions = 0;
@@ -309,7 +309,7 @@ export class NetworkTrainingService {
       let activation = this.relu(sum);
       
       // Apply dropout during training
-      if (dropoutRate > 0 && secureCrypto.secureRandom.random() < dropoutRate) {
+      if (dropoutRate > 0 && SecureRandom.random() < dropoutRate) {
         activation = 0;
       } else if (dropoutRate > 0) {
         activation /= (1 - dropoutRate); // Scale up remaining neurons
@@ -468,7 +468,7 @@ export class NetworkTrainingService {
     trainSet: TrainingExample[];
     validationSet: TrainingExample[];
   } {
-    const shuffled = secureCrypto.secureShuffleArray([...data]);
+    const shuffled = SecureRandom.shuffle([...data]);
     const splitIndex = Math.floor(shuffled.length * (1 - validationSplit));
     
     return {

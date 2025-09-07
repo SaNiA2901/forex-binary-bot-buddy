@@ -11,7 +11,7 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const App = () => {
-  console.log('App component rendering...');
+  // Removed console.log for production security
   
   return (
   <QueryClientProvider client={queryClient}>
