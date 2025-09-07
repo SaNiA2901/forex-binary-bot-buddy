@@ -7,14 +7,112 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
+  // Allows to automatically instanciate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
   }
   public: {
     Tables: {
-      [_ in never]: never
+      candle_data: {
+        Row: {
+          candle_datetime: string
+          candle_index: number
+          close: number
+          created_at: string
+          high: number
+          id: string
+          low: number
+          open: number
+          prediction_confidence: number | null
+          prediction_direction: string | null
+          prediction_probability: number | null
+          session_id: string | null
+          volume: number
+        }
+        Insert: {
+          candle_datetime: string
+          candle_index: number
+          close: number
+          created_at?: string
+          high: number
+          id?: string
+          low: number
+          open: number
+          prediction_confidence?: number | null
+          prediction_direction?: string | null
+          prediction_probability?: number | null
+          session_id?: string | null
+          volume: number
+        }
+        Update: {
+          candle_datetime?: string
+          candle_index?: number
+          close?: number
+          created_at?: string
+          high?: number
+          id?: string
+          low?: number
+          open?: number
+          prediction_confidence?: number | null
+          prediction_direction?: string | null
+          prediction_probability?: number | null
+          session_id?: string | null
+          volume?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candle_data_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "trading_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_candle_session"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "trading_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trading_sessions: {
+        Row: {
+          created_at: string
+          current_candle_index: number
+          id: string
+          pair: string
+          session_name: string
+          start_date: string
+          start_time: string
+          timeframe: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_candle_index?: number
+          id?: string
+          pair: string
+          session_name: string
+          start_date: string
+          start_time: string
+          timeframe: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_candle_index?: number
+          id?: string
+          pair?: string
+          session_name?: string
+          start_date?: string
+          start_time?: string
+          timeframe?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
