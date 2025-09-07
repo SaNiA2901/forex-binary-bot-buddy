@@ -4,7 +4,7 @@
  */
 
 import { CandleData } from '@/types/session';
-import { supabase } from '@/integration/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
 import { errorHandler, ErrorCategory } from '@/utils/errorHandler';
 import { isPreviewEnvironment } from '@/utils/previewOptimization';
