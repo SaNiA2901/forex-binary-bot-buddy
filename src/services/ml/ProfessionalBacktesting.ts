@@ -236,7 +236,7 @@ class ProfessionalBacktesting {
 
     // Create trade
     const trade: Trade = {
-      id: SecureRandom.generateSecure(),
+      id: SecureRandom.uuid(),
       entryTime: nextCandle.timestamp,
       entryPrice,
       direction: prediction.direction === 'up' ? 'long' : 'short',
