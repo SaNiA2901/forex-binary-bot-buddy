@@ -91,7 +91,7 @@ export class SessionRepository implements Repository<SessionEntity, string> {
       }
 
       // Create value objects
-      const id = SessionValueObjects.sessionId(secureCrypto.generateId());
+      const id = SessionValueObjects.sessionId(SecureRandom.uuid());
       const name = SessionValueObjects.sessionName(validatedData.session_name);
       const pair = SessionValueObjects.tradingPair(validatedData.pair);
       const timeframe = SessionValueObjects.timeFrame(validatedData.timeframe);
