@@ -169,4 +169,10 @@ export const secureMath = {
   random: () => SecureRandom.random(),
   randomInt: (min: number, max: number) => SecureRandom.randomInt(min, max),
   randomFloat: (min: number, max: number) => SecureRandom.randomFloat(min, max),
+}
+
+// Backwards compatibility aliases
+export const secureCrypto = {
+  generateId: () => SecureRandom.uuid(),
+  generateSecure: () => SecureRandom.uuid()
 };
