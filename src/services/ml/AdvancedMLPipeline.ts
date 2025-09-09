@@ -296,7 +296,7 @@ class AdvancedMLPipeline {
       const features = this.extractFeatures(candles, currentIndex);
       
       // Use cryptographically secure random for model selection/ensemble
-      const modelSeed = SecureRandom.generateSecure();
+      const modelSeed = SecureRandom.uuid();
       
       // For now, use rule-based prediction with extracted features
       // In production, this would be replaced with trained model inference
