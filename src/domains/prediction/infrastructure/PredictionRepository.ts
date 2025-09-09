@@ -49,7 +49,7 @@ export class PredictionRepository implements Repository<PredictionEntity, string
   }
 
   async generate(candleData: CandleEntity[], config: PredictionConfig): Promise<PredictionEntity> {
-    const id = PredictionValueObjects.predictionId(SecureRandom.generateId());
+    const id = PredictionValueObjects.predictionId(SecureRandom.generateSecure());
     const direction = PredictionValueObjects.predictionDirection('UP');
     const probability = PredictionValueObjects.probability(75);
     const confidence = PredictionValueObjects.confidence(80);
@@ -76,7 +76,7 @@ export class PredictionRepository implements Repository<PredictionEntity, string
         createdAt: new Date(),
         modelVersion: '1.0.0',
         algorithm: 'ensemble',
-        parameters: config as Record<string, unknown>,
+        parameters: config as unknown as Record<string, unknown>,
         confidence_level: 'high'
       }
     };
