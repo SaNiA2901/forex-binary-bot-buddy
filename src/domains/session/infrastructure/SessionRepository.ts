@@ -8,7 +8,7 @@ import { SessionEntity, SessionValueObjects } from '@/domains/session/types';
 import { ValidationError } from '@/shared/infrastructure/ErrorHandler';
 import { InputValidator } from '@/utils/validation/secureValidation';
 import { secureLogger } from '@/utils/secureLogger';
-import { secureCrypto } from '@/utils/secureCrypto';
+import { SecureRandom } from '@/utils/secureCrypto';
 
 export interface CreateSessionData {
   session_name: string;

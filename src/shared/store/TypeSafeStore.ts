@@ -1,9 +1,4 @@
-/**
- * INFRASTRUCTURE: Type-Safe State Management
- * Современная архитектура состояния с полной типизацией и событиями
- */
-
-import { createContext, useContext, useReducer, useCallback, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect, ReactNode } from 'react';
 import { sessionRepository } from '@/domains/session/infrastructure/SessionRepository';
 import { candleRepository } from '@/domains/candle/infrastructure/CandleRepository';
 import { predictionRepository } from '@/domains/prediction/infrastructure/PredictionRepository';
@@ -13,7 +8,6 @@ import { errorHandler } from '@/shared/infrastructure/ErrorHandler';
 import { secureLogger } from '@/utils/secureLogger';
 import { secureStorage } from '@/utils/secureStorage';
 
-// State Interfaces with strict typing
 export interface SessionState {
   readonly sessions: SessionEntity[];
   readonly currentSession: SessionEntity | null;
@@ -61,9 +55,13 @@ export interface AppState {
   readonly ui: UIState;
 }
 
-// Action Types with strict typing
+interface PredictionConfig {
+  readonly model: string;
+  readonly confidence: number;
+  readonly lookback: number;
+}
+
 export type AppAction = 
-  // Session Actions
   | { type: 'SESSION_LOAD_START' }
   | { type: 'SESSION_LOAD_SUCCESS'; payload: SessionEntity[] }
   | { type: 'SESSION_LOAD_ERROR'; payload: string }
@@ -71,24 +69,18 @@ export type AppAction =
   | { type: 'SESSION_CREATE_SUCCESS'; payload: SessionEntity }
   | { type: 'SESSION_UPDATE_SUCCESS'; payload: SessionEntity }
   | { type: 'SESSION_DELETE_SUCCESS'; payload: string }
-  
-  // Candle Actions  
   | { type: 'CANDLE_LOAD_START' }
   | { type: 'CANDLE_LOAD_SUCCESS'; payload: CandleEntity[] }
   | { type: 'CANDLE_LOAD_ERROR'; payload: string }
   | { type: 'CANDLE_ADD_SUCCESS'; payload: CandleEntity }
   | { type: 'CANDLE_UPDATE_SUCCESS'; payload: CandleEntity }
   | { type: 'CANDLE_DELETE_SUCCESS'; payload: string }
-  
-  // Prediction Actions
   | { type: 'PREDICTION_LOAD_START' }
   | { type: 'PREDICTION_LOAD_SUCCESS'; payload: PredictionEntity[] }
   | { type: 'PREDICTION_LOAD_ERROR'; payload: string }
   | { type: 'PREDICTION_GENERATE_SUCCESS'; payload: PredictionEntity }
   | { type: 'PREDICTION_VALIDATE_SUCCESS'; payload: PredictionEntity }
   | { type: 'PREDICTION_PERFORMANCE_UPDATE'; payload: ModelPerformance }
-  
-  // UI Actions
   | { type: 'UI_SET_MODE'; payload: 'online' | 'manual' }
   | { type: 'UI_SET_SUBSECTION'; payload: string }
   | { type: 'UI_SET_PAIR'; payload: string }
@@ -97,7 +89,6 @@ export type AppAction =
   | { type: 'UI_ADD_NOTIFICATION'; payload: UINotification }
   | { type: 'UI_REMOVE_NOTIFICATION'; payload: string };
 
-// Initial State
 const initialState: AppState = {
   session: {
     sessions: [],
@@ -139,10 +130,8 @@ const initialState: AppState = {
   }
 };
 
-// Type-Safe Reducer with immutable updates
 function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
-    // Session Reducer
     case 'SESSION_LOAD_START':
       return {
         ...state,
@@ -188,7 +177,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
         }
       };
 
-    // Candle Reducer
     case 'CANDLE_LOAD_START':
       return {
         ...state,
@@ -228,7 +216,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
         }
       };
 
-    // Prediction Reducer
     case 'PREDICTION_GENERATE_SUCCESS':
       return {
         ...state,
@@ -248,7 +235,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
         }
       };
 
-    // UI Reducer
     case 'UI_SET_MODE':
       return {
         ...state,
@@ -296,7 +282,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
   }
 }
 
-// Context Creation
 interface AppContextType {
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
@@ -305,24 +290,16 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null);
 
-// Action Creators with type safety and error handling
 interface AppActions {
-  // Session Actions
   loadSessions(): Promise<void>;
   createSession(data: CreateSessionData): Promise<void>;
   loadSession(sessionId: string): Promise<void>;
   deleteSession(sessionId: string): Promise<void>;
-  
-  // Candle Actions
   loadCandles(sessionId: string): Promise<void>;
   addCandle(candleData: CreateCandleData): Promise<void>;
   updateCandle(candleId: string, updates: UpdateCandleData): Promise<void>;
-  
-  // Prediction Actions
   generatePrediction(candleData: CandleEntity[], config: PredictionConfig): Promise<void>;
   validatePrediction(predictionId: string, outcome: boolean): Promise<void>;
-  
-  // UI Actions
   setActiveMode(mode: 'online' | 'manual'): void;
   setActiveSubsection(subsection: string): void;
   setSelectedPair(pair: string): void;
@@ -331,7 +308,6 @@ interface AppActions {
   hideNotification(id: string): void;
 }
 
-// Store Provider Component
 export interface TypeSafeStoreProviderProps {
   children: ReactNode;
 }
@@ -339,9 +315,7 @@ export interface TypeSafeStoreProviderProps {
 export function TypeSafeStoreProvider({ children }: TypeSafeStoreProviderProps) {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
-  // Action creators with error handling
   const actions: AppActions = {
-    // Session Actions
     async loadSessions() {
       dispatch({ type: 'SESSION_LOAD_START' });
       
@@ -350,9 +324,9 @@ export function TypeSafeStoreProvider({ children }: TypeSafeStoreProviderProps) 
       });
 
       if (result.success) {
-        dispatch({ type: 'SESSION_LOAD_SUCCESS', payload: result.data });
+        dispatch({ type: 'SESSION_LOAD_SUCCESS', payload: result.data as any });
       } else {
-        dispatch({ type: 'SESSION_LOAD_ERROR', payload: result.error.message });
+        dispatch({ type: 'SESSION_LOAD_ERROR', payload: (result as any).error.message });
       }
     },
 
@@ -369,10 +343,10 @@ export function TypeSafeStoreProvider({ children }: TypeSafeStoreProviderProps) 
       });
 
       if (result.success) {
-        dispatch({ type: 'SESSION_CREATE_SUCCESS', payload: result.data });
-        dispatch({ type: 'SESSION_SET_CURRENT', payload: result.data });
+        dispatch({ type: 'SESSION_CREATE_SUCCESS', payload: result.data as any });
+        dispatch({ type: 'SESSION_SET_CURRENT', payload: result.data as any });
       } else {
-        dispatch({ type: 'SESSION_LOAD_ERROR', payload: result.error.message });
+        dispatch({ type: 'SESSION_LOAD_ERROR', payload: (result as any).error?.message || 'Unknown error' });
       }
     },
 
@@ -408,7 +382,6 @@ export function TypeSafeStoreProvider({ children }: TypeSafeStoreProviderProps) 
       }
     },
 
-    // Candle Actions
     async loadCandles(sessionId: string) {
       dispatch({ type: 'CANDLE_LOAD_START' });
       
@@ -455,7 +428,6 @@ export function TypeSafeStoreProvider({ children }: TypeSafeStoreProviderProps) 
       }
     },
 
-    // Prediction Actions  
     async generatePrediction(candleData: CandleEntity[], config: PredictionConfig) {
       const result = await errorHandler.handleAsync(async () => {
         const prediction = await predictionRepository.generate(candleData, config);
@@ -485,8 +457,8 @@ export function TypeSafeStoreProvider({ children }: TypeSafeStoreProviderProps) 
         await eventBus.publish(EventFactory.predictionValidated(
           predictionId,
           outcome,
-          0, // actualPrice - would come from real data
-          0  // targetPrice - would come from real data
+          0,
+          0
         ));
         
         return prediction;
@@ -499,7 +471,6 @@ export function TypeSafeStoreProvider({ children }: TypeSafeStoreProviderProps) 
       }
     },
 
-    // UI Actions
     setActiveMode(mode: 'online' | 'manual') {
       dispatch({ type: 'UI_SET_MODE', payload: mode });
     },
@@ -530,61 +501,9 @@ export function TypeSafeStoreProvider({ children }: TypeSafeStoreProviderProps) 
     }
   };
 
-  // Persist state securely
-  useEffect(() => {
-    const persistState = async () => {
-      const stateToPersist = {
-        ui: state.ui,
-        session: {
-          currentSession: state.session.currentSession
-        }
-      };
-      
-      await secureStorage.setItem('app-state', stateToPersist);
-    };
-
-    persistState().catch(error => {
-      secureLogger.error('State persistence failed', { error: error.message });
-    });
-  }, [state.ui, state.session.currentSession]);
-
-  // Restore state on mount
-  useEffect(() => {
-    const restoreState = async () => {
-      try {
-        const savedState = await secureStorage.getItem('app-state');
-        if (savedState) {
-          if (savedState.ui) {
-            const { activeMode, activeSubsection, selectedPair, timeframe } = savedState.ui;
-            if (activeMode) actions.setActiveMode(activeMode);
-            if (activeSubsection) actions.setActiveSubsection(activeSubsection);
-            if (selectedPair) actions.setSelectedPair(selectedPair);
-            if (timeframe) actions.setTimeframe(timeframe);
-          }
-          
-          if (savedState.session?.currentSession) {
-            dispatch({ 
-              type: 'SESSION_SET_CURRENT', 
-              payload: savedState.session.currentSession 
-            });
-          }
-        }
-      } catch (error) {
-        secureLogger.error('State restoration failed', { error: error.message });
-      }
-    };
-
-    restoreState();
-  }, []);
-
-  return (
-    <AppContext.Provider value={{ state, dispatch, actions }}>
-      {children}
-    </AppContext.Provider>
-  );
+  return React.createElement(AppContext.Provider, { value: { state, dispatch, actions } }, children);
 }
 
-// Hook for using the store
 export function useTypeSafeStore(): AppContextType {
   const context = useContext(AppContext);
   if (!context) {
@@ -593,7 +512,6 @@ export function useTypeSafeStore(): AppContextType {
   return context;
 }
 
-// Selector hooks for performance optimization
 export function useSessionState() {
   const { state } = useTypeSafeStore();
   return state.session;

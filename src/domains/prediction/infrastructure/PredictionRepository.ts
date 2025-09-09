@@ -8,7 +8,7 @@ import { PredictionEntity, PredictionValueObjects } from '@/domains/prediction/t
 import { CandleEntity } from '@/domains/candle/types';
 import { ValidationError } from '@/shared/infrastructure/ErrorHandler';
 import { secureLogger } from '@/utils/secureLogger';
-import { secureCrypto } from '@/utils/secureCrypto';
+import { SecureRandom } from '@/utils/secureCrypto';
 
 export interface PredictionConfig {
   predictionInterval: number;
@@ -49,7 +49,7 @@ export class PredictionRepository implements Repository<PredictionEntity, string
   }
 
   async generate(candleData: CandleEntity[], config: PredictionConfig): Promise<PredictionEntity> {
-    const id = PredictionValueObjects.predictionId(secureCrypto.generateId());
+    const id = PredictionValueObjects.predictionId(SecureRandom.generateId());
     const direction = PredictionValueObjects.predictionDirection('UP');
     const probability = PredictionValueObjects.probability(75);
     const confidence = PredictionValueObjects.confidence(80);
@@ -76,7 +76,7 @@ export class PredictionRepository implements Repository<PredictionEntity, string
         createdAt: new Date(),
         modelVersion: '1.0.0',
         algorithm: 'ensemble',
-        parameters: config,
+        parameters: config as Record<string, unknown>,
         confidence_level: 'high'
       }
     };
