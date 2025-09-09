@@ -131,7 +131,7 @@ export class CandleRepository implements Repository<CandleEntity, string> {
       }
 
       // Create value objects
-      const id = CandleValueObjects.candleId(secureCrypto.generateId());
+      const id = CandleValueObjects.candleId(SecureRandom.uuid());
       const index = CandleValueObjects.candleIndex(data.candle_index);
       const ohlcv = CandleValueObjects.ohlcv(
         validatedData.open,
