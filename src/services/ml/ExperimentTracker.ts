@@ -1,314 +1,303 @@
-import { TrainingExperiment, ModelMetrics } from './AdvancedMLTrainingService';
+/**
+ * ML Experiment Tracking Service
+ * Tracks training experiments, hyperparameters, and results
+ */
 
-export interface ExperimentComparison {
-  experiments: TrainingExperiment[];
-  bestByMetric: Record<string, TrainingExperiment>;
-  rankings: ExperimentRanking[];
-}
+import { secureLogger } from '@/utils/secureLogger';
 
-export interface ExperimentRanking {
-  experiment: TrainingExperiment;
-  score: number;
-  rank: number;
-}
-
-export interface ExperimentFilter {
-  status?: TrainingExperiment['status'][];
-  modelTypes?: string[];
-  minAccuracy?: number;
-  minSharpeRatio?: number;
-  dateRange?: {
-    start: Date;
-    end: Date;
+export interface ExperimentConfig {
+  id: string;
+  name: string;
+  description?: string;
+  algorithm: string;
+  hyperparameters: Record<string, any>;
+  dataset: {
+    size: number;
+    features: string[];
+    target: string;
+    split: {
+      train: number;
+      validation: number;
+      test: number;
+    };
   };
 }
 
-export class ExperimentTracker {
-  private experiments: Map<string, TrainingExperiment> = new Map();
-  private experimentHistory: TrainingExperiment[] = [];
+export interface ExperimentResult {
+  id: string;
+  experimentId: string;
+  timestamp: Date;
+  duration: number; // seconds
+  metrics: {
+    accuracy: number;
+    precision: number;
+    recall: number;
+    f1Score: number;
+    loss: number;
+    valAccuracy?: number;
+    valLoss?: number;
+  };
+  confusion_matrix?: number[][];
+  feature_importance?: Record<string, number>;
+  model_size?: number; // bytes
+  status: 'running' | 'completed' | 'failed' | 'stopped';
+  error?: string;
+}
+
+export interface ExperimentComparison {
+  experiments: ExperimentResult[];
+  bestModel: ExperimentResult;
+  rankings: {
+    byAccuracy: ExperimentResult[];
+    byF1Score: ExperimentResult[];
+    bySpeed: ExperimentResult[];
+  };
+}
+
+class ExperimentTrackerService {
+  private experiments = new Map<string, ExperimentConfig>();
+  private results = new Map<string, ExperimentResult[]>();
+  private activeExperiments = new Set<string>();
 
   /**
-   * Add experiment to tracking
+   * Create new experiment
    */
-  addExperiment(experiment: TrainingExperiment): void {
-    this.experiments.set(experiment.id, experiment);
-    this.experimentHistory.push({ ...experiment });
-  }
+  createExperiment(config: ExperimentConfig): void {
+    this.experiments.set(config.id, config);
+    this.results.set(config.id, []);
 
-  /**
-   * Update experiment metrics
-   */
-  updateExperiment(experimentId: string, updates: Partial<TrainingExperiment>): void {
-    const experiment = this.experiments.get(experimentId);
-    if (experiment) {
-      Object.assign(experiment, updates);
-    }
-  }
-
-  /**
-   * Get experiment by ID
-   */
-  getExperiment(id: string): TrainingExperiment | undefined {
-    return this.experiments.get(id);
-  }
-
-  /**
-   * Get all experiments with optional filtering
-   */
-  getExperiments(filter?: ExperimentFilter): TrainingExperiment[] {
-    let experiments = Array.from(this.experiments.values());
-
-    if (!filter) return experiments;
-
-    if (filter.status) {
-      experiments = experiments.filter(exp => filter.status!.includes(exp.status));
-    }
-
-    if (filter.modelTypes) {
-      experiments = experiments.filter(exp => filter.modelTypes!.includes(exp.model));
-    }
-
-    if (filter.minAccuracy !== undefined) {
-      experiments = experiments.filter(exp => exp.metrics.accuracy >= filter.minAccuracy!);
-    }
-
-    if (filter.minSharpeRatio !== undefined) {
-      experiments = experiments.filter(exp => exp.metrics.sharpeRatio >= filter.minSharpeRatio!);
-    }
-
-    if (filter.dateRange) {
-      experiments = experiments.filter(exp => 
-        exp.startTime >= filter.dateRange!.start && exp.startTime <= filter.dateRange!.end
-      );
-    }
-
-    return experiments;
-  }
-
-  /**
-   * Compare multiple experiments
-   */
-  compareExperiments(experimentIds: string[]): ExperimentComparison {
-    const experiments = experimentIds
-      .map(id => this.experiments.get(id))
-      .filter(exp => exp !== undefined) as TrainingExperiment[];
-
-    if (experiments.length === 0) {
-      return {
-        experiments: [],
-        bestByMetric: {},
-        rankings: []
-      };
-    }
-
-    // Find best experiment for each metric
-    const bestByMetric: Record<string, TrainingExperiment> = {
-      accuracy: this.getBestByMetric(experiments, 'accuracy'),
-      precision: this.getBestByMetric(experiments, 'precision'),
-      recall: this.getBestByMetric(experiments, 'recall'),
-      f1Score: this.getBestByMetric(experiments, 'f1Score'),
-      sharpeRatio: this.getBestByMetric(experiments, 'sharpeRatio'),
-      winRate: this.getBestByMetric(experiments, 'winRate'),
-      avgReturn: this.getBestByMetric(experiments, 'avgReturn')
-    };
-
-    // Calculate overall rankings
-    const rankings = this.calculateRankings(experiments);
-
-    return {
-      experiments,
-      bestByMetric,
-      rankings
-    };
-  }
-
-  private getBestByMetric(experiments: TrainingExperiment[], metric: keyof ModelMetrics): TrainingExperiment {
-    return experiments.reduce((best, current) => {
-      if (metric === 'maxDrawdown' || metric === 'volatility') {
-        // Lower is better for these metrics
-        return current.metrics[metric] < best.metrics[metric] ? current : best;
-      } else {
-        // Higher is better for other metrics
-        return current.metrics[metric] > best.metrics[metric] ? current : best;
-      }
+    secureLogger.info('Experiment created', {
+      experimentId: config.id,
+      algorithm: config.algorithm,
+      datasetSize: config.dataset.size,
+      component: 'experiment-tracker'
     });
   }
 
   /**
-   * Calculate composite score for experiment ranking
+   * Start experiment run
    */
-  private calculateCompositeScore(experiment: TrainingExperiment): number {
-    const metrics = experiment.metrics;
-    
-    // Weighted scoring system
-    const weights = {
-      accuracy: 0.2,
-      sharpeRatio: 0.25,
-      maxDrawdown: 0.15, // Negative weight (lower is better)
-      winRate: 0.15,
-      f1Score: 0.15,
-      avgReturn: 0.1
+  startRun(experimentId: string): string {
+    const experiment = this.experiments.get(experimentId);
+    if (!experiment) {
+      throw new Error(`Experiment ${experimentId} not found`);
+    }
+
+    const runId = `run-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    this.activeExperiments.add(runId);
+
+    const result: ExperimentResult = {
+      id: runId,
+      experimentId,
+      timestamp: new Date(),
+      duration: 0,
+      metrics: {
+        accuracy: 0,
+        precision: 0,
+        recall: 0,
+        f1Score: 0,
+        loss: 0
+      },
+      status: 'running'
     };
 
-    const score = 
-      metrics.accuracy * weights.accuracy +
-      Math.max(0, metrics.sharpeRatio) * weights.sharpeRatio +
-      (1 - Math.min(1, metrics.maxDrawdown)) * weights.maxDrawdown + // Inverted
-      metrics.winRate * weights.winRate +
-      metrics.f1Score * weights.f1Score +
-      Math.max(0, metrics.avgReturn) * weights.avgReturn;
+    const runs = this.results.get(experimentId) || [];
+    runs.push(result);
+    this.results.set(experimentId, runs);
 
-    return Math.max(0, Math.min(1, score)); // Normalize to 0-1
+    secureLogger.info('Experiment run started', {
+      experimentId,
+      runId,
+      component: 'experiment-tracker'
+    });
+
+    return runId;
   }
 
   /**
-   * Calculate rankings for experiments
+   * Complete experiment run
    */
-  private calculateRankings(experiments: TrainingExperiment[]): ExperimentRanking[] {
-    const scoredExperiments = experiments.map(exp => ({
-      experiment: exp,
-      score: this.calculateCompositeScore(exp)
-    }));
+  completeRun(
+    runId: string, 
+    metrics: ExperimentResult['metrics'],
+    additionalData?: Partial<ExperimentResult>
+  ): void {
+    const run = this.findRun(runId);
+    if (!run) {
+      throw new Error(`Run ${runId} not found`);
+    }
 
-    // Sort by score descending
-    scoredExperiments.sort((a, b) => b.score - a.score);
+    run.metrics = metrics;
+    run.status = 'completed';
+    run.duration = (Date.now() - run.timestamp.getTime()) / 1000;
+    
+    if (additionalData) {
+      Object.assign(run, additionalData);
+    }
 
-    // Assign ranks
-    return scoredExperiments.map((item, index) => ({
-      ...item,
-      rank: index + 1
-    }));
+    this.activeExperiments.delete(runId);
+
+    secureLogger.info('Experiment run completed', {
+      runId,
+      experimentId: run.experimentId,
+      accuracy: metrics.accuracy,
+      f1Score: metrics.f1Score,
+      duration: run.duration,
+      component: 'experiment-tracker'
+    });
   }
 
   /**
-   * Get experiment statistics
+   * Fail experiment run
    */
-  getStatistics(): {
-    total: number;
-    completed: number;
-    running: number;
-    failed: number;
-    avgAccuracy: number;
-    avgSharpeRatio: number;
-    bestOverallScore: number;
-  } {
-    const experiments = Array.from(this.experiments.values());
-    const completed = experiments.filter(exp => exp.status === 'completed');
+  failRun(runId: string, error: string): void {
+    const run = this.findRun(runId);
+    if (!run) {
+      throw new Error(`Run ${runId} not found`);
+    }
 
-    const avgAccuracy = completed.length > 0 
-      ? completed.reduce((sum, exp) => sum + exp.metrics.accuracy, 0) / completed.length 
-      : 0;
+    run.status = 'failed';
+    run.error = error;
+    run.duration = (Date.now() - run.timestamp.getTime()) / 1000;
+    
+    this.activeExperiments.delete(runId);
 
-    const avgSharpeRatio = completed.length > 0
-      ? completed.reduce((sum, exp) => sum + exp.metrics.sharpeRatio, 0) / completed.length
-      : 0;
+    secureLogger.error('Experiment run failed', {
+      runId,
+      experimentId: run.experimentId,
+      error,
+      component: 'experiment-tracker'
+    });
+  }
 
-    const bestOverallScore = completed.length > 0
-      ? Math.max(...completed.map(exp => this.calculateCompositeScore(exp)))
-      : 0;
+  /**
+   * Find run by ID
+   */
+  private findRun(runId: string): ExperimentResult | null {
+    for (const runs of this.results.values()) {
+      const run = runs.find(r => r.id === runId);
+      if (run) return run;
+    }
+    return null;
+  }
+
+  /**
+   * Get experiment results
+   */
+  getExperimentResults(experimentId: string): ExperimentResult[] {
+    return this.results.get(experimentId) || [];
+  }
+
+  /**
+   * Get best run for experiment
+   */
+  getBestRun(experimentId: string, metric: keyof ExperimentResult['metrics'] = 'accuracy'): ExperimentResult | null {
+    const runs = this.getExperimentResults(experimentId)
+      .filter(run => run.status === 'completed');
+    
+    if (runs.length === 0) return null;
+
+    return runs.reduce((best, current) => 
+      current.metrics[metric] > best.metrics[metric] ? current : best
+    );
+  }
+
+  /**
+   * Compare experiments
+   */
+  compareExperiments(experimentIds: string[]): ExperimentComparison {
+    const allRuns = experimentIds.flatMap(id => 
+      this.getExperimentResults(id).filter(run => run.status === 'completed')
+    );
+
+    if (allRuns.length === 0) {
+      throw new Error('No completed runs found for comparison');
+    }
+
+    const bestModel = allRuns.reduce((best, current) => 
+      current.metrics.accuracy > best.metrics.accuracy ? current : best
+    );
+
+    const rankings = {
+      byAccuracy: [...allRuns].sort((a, b) => b.metrics.accuracy - a.metrics.accuracy),
+      byF1Score: [...allRuns].sort((a, b) => b.metrics.f1Score - a.metrics.f1Score),
+      bySpeed: [...allRuns].sort((a, b) => a.duration - b.duration)
+    };
 
     return {
-      total: experiments.length,
-      completed: experiments.filter(exp => exp.status === 'completed').length,
-      running: experiments.filter(exp => exp.status === 'running').length,
-      failed: experiments.filter(exp => exp.status === 'failed').length,
-      avgAccuracy,
-      avgSharpeRatio,
-      bestOverallScore
+      experiments: allRuns,
+      bestModel,
+      rankings
     };
   }
 
   /**
-   * Export experiments to JSON
+   * Get experiment history
    */
-  exportExperiments(experimentIds?: string[]): string {
-    const experiments = experimentIds
-      ? experimentIds.map(id => this.experiments.get(id)).filter(Boolean)
-      : Array.from(this.experiments.values());
+  getExperimentHistory(experimentId: string): {
+    runs: ExperimentResult[];
+    summary: {
+      totalRuns: number;
+      successfulRuns: number;
+      averageAccuracy: number;
+      bestAccuracy: number;
+      averageDuration: number;
+    };
+  } {
+    const runs = this.getExperimentResults(experimentId);
+    const completedRuns = runs.filter(run => run.status === 'completed');
 
-    return JSON.stringify(experiments, null, 2);
+    const summary = {
+      totalRuns: runs.length,
+      successfulRuns: completedRuns.length,
+      averageAccuracy: completedRuns.length > 0 
+        ? completedRuns.reduce((sum, run) => sum + run.metrics.accuracy, 0) / completedRuns.length
+        : 0,
+      bestAccuracy: completedRuns.length > 0 
+        ? Math.max(...completedRuns.map(run => run.metrics.accuracy))
+        : 0,
+      averageDuration: completedRuns.length > 0
+        ? completedRuns.reduce((sum, run) => sum + run.duration, 0) / completedRuns.length
+        : 0
+    };
+
+    return { runs, summary };
   }
 
   /**
-   * Import experiments from JSON
+   * Export experiment data
    */
-  importExperiments(jsonData: string): number {
-    try {
-      const experiments = JSON.parse(jsonData) as TrainingExperiment[];
-      let imported = 0;
+  exportExperiment(experimentId: string): string {
+    const experiment = this.experiments.get(experimentId);
+    const results = this.getExperimentResults(experimentId);
 
-      for (const exp of experiments) {
-        if (exp.id && !this.experiments.has(exp.id)) {
-          this.experiments.set(exp.id, exp);
-          imported++;
-        }
-      }
-
-      return imported;
-    } catch (error) {
-      throw new Error(`Failed to import experiments: ${error}`);
+    if (!experiment) {
+      throw new Error(`Experiment ${experimentId} not found`);
     }
+
+    const exportData = {
+      experiment,
+      results,
+      exportedAt: new Date(),
+      version: '1.0'
+    };
+
+    return JSON.stringify(exportData, null, 2);
   }
 
   /**
-   * Clean up old experiments (keep only recent ones)
+   * Get active experiments
    */
-  cleanup(keepDays: number = 30): number {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - keepDays);
-
-    const toDelete: string[] = [];
-    
-    for (const [id, experiment] of this.experiments.entries()) {
-      if (experiment.startTime < cutoffDate && experiment.status !== 'running') {
-        toDelete.push(id);
-      }
-    }
-
-    toDelete.forEach(id => this.experiments.delete(id));
-    
-    return toDelete.length;
+  getActiveExperiments(): string[] {
+    return Array.from(this.activeExperiments);
   }
 
   /**
-   * Get performance trends over time
+   * Get all experiments
    */
-  getPerformanceTrends(): {
-    date: string;
-    accuracy: number;
-    sharpeRatio: number;
-    experiments: number;
-  }[] {
-    const completed = Array.from(this.experiments.values())
-      .filter(exp => exp.status === 'completed')
-      .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
-
-    const trends: Map<string, {
-      accuracy: number[];
-      sharpeRatio: number[];
-      count: number;
-    }> = new Map();
-
-    for (const exp of completed) {
-      const dateKey = exp.startTime.toISOString().split('T')[0];
-      
-      if (!trends.has(dateKey)) {
-        trends.set(dateKey, { accuracy: [], sharpeRatio: [], count: 0 });
-      }
-      
-      const trend = trends.get(dateKey)!;
-      trend.accuracy.push(exp.metrics.accuracy);
-      trend.sharpeRatio.push(exp.metrics.sharpeRatio);
-      trend.count++;
-    }
-
-    return Array.from(trends.entries()).map(([date, data]) => ({
-      date,
-      accuracy: data.accuracy.reduce((a, b) => a + b, 0) / data.accuracy.length,
-      sharpeRatio: data.sharpeRatio.reduce((a, b) => a + b, 0) / data.sharpeRatio.length,
-      experiments: data.count
-    }));
+  getAllExperiments(): ExperimentConfig[] {
+    return Array.from(this.experiments.values());
   }
 }
 
-export const experimentTracker = new ExperimentTracker();
+export const experimentTracker = new ExperimentTrackerService();

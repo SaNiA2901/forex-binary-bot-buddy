@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "next-themes";
 import { TypeSafeStoreProvider } from '@/shared/store/TypeSafeStore';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
+import PerformanceMonitor from '@/components/ui/common/PerformanceMonitor';
 import Index from '@/pages/Index';
 import NotFound from '@/pages/NotFound';
 
@@ -37,6 +38,7 @@ function App() {
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>
+              <PerformanceMonitor isVisible={import.meta.env.DEV} />
             </TooltipProvider>
           </TypeSafeStoreProvider>
         </ThemeProvider>

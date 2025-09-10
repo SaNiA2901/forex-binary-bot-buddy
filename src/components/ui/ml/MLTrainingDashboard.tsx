@@ -352,21 +352,17 @@ export const MLTrainingDashboard: React.FC = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {Object.entries(comparison.bestByMetric).map(([metric, experiment]) => (
-                          <div key={metric} className="text-center p-3 border rounded">
-                            <div className="font-medium text-sm text-muted-foreground">
-                              {metric.charAt(0).toUpperCase() + metric.slice(1)}
-                            </div>
-                            <div className="font-semibold">
-                              {experiment.name.slice(-8)}
-                            </div>
-                            <div className="text-sm">
-                              {(experiment.metrics[metric as keyof typeof experiment.metrics] as number * 
-                                (metric.includes('Rate') || metric === 'accuracy' ? 100 : 1)).toFixed(metric === 'sharpeRatio' ? 3 : 2)}
-                              {metric.includes('Rate') || metric === 'accuracy' ? '%' : ''}
-                            </div>
+                        <div className="text-center p-3 border rounded">
+                          <div className="font-medium text-sm text-muted-foreground">
+                            Best Accuracy
                           </div>
-                        ))}
+                          <div className="font-semibold">
+                            {comparison.bestModel.id.slice(-8)}
+                          </div>
+                          <div className="text-sm">
+                            {(comparison.bestModel.metrics.accuracy * 100).toFixed(2)}%
+                          </div>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -377,17 +373,17 @@ export const MLTrainingDashboard: React.FC = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        {comparison.rankings.map((ranking) => (
-                          <div key={ranking.experiment.id} className="flex items-center justify-between p-3 border rounded">
+                        {comparison.rankings.byAccuracy.slice(0, 5).map((result, index) => (
+                          <div key={result.id} className="flex items-center justify-between p-3 border rounded">
                             <div className="flex items-center gap-3">
                               <div className="flex items-center gap-2">
                                 <Award className="w-4 h-4" />
-                                <span className="font-medium">#{ranking.rank}</span>
+                                <span className="font-medium">#{index + 1}</span>
                               </div>
                               <div>
-                                <div className="font-medium">{ranking.experiment.name}</div>
+                                <div className="font-medium">{result.id}</div>
                                 <div className="text-sm text-muted-foreground">
-                                  {ranking.experiment.model}
+                                  Accuracy: {(result.metrics.accuracy * 100).toFixed(2)}%
                                 </div>
                               </div>
                             </div>
