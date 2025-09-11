@@ -389,7 +389,7 @@ export const MLTrainingDashboard: React.FC = () => {
                             </div>
                             <div className="text-right">
                               <div className="font-medium">
-                                Score: {(result.score * 100).toFixed(1)}
+                                Score: {(result.metrics.accuracy * 100).toFixed(1)}
                               </div>
                               <div className="text-sm text-muted-foreground">
                                 Acc: {(result.metrics.accuracy * 100).toFixed(1)}%
