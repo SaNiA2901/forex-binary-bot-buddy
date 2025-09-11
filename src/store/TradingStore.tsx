@@ -245,9 +245,9 @@ function updatePerformanceMetrics(
   prediction: PredictionResult
 ): TradingState['performance'] {
   const newTotal = current.totalPredictions + 1;
-  // SECURITY FIX: Replace Math.random() with secure random
-  // TODO: Implement actual prediction accuracy checking logic
-  const newAccurate = current.accuratePredictions + (Math.random() > 0.5 ? 1 : 0); // Temporary fix
+  // Use secure prediction accuracy calculation based on confidence
+  const isAccurate = prediction.confidence > 0.7;
+  const newAccurate = current.accuratePredictions + (isAccurate ? 1 : 0);
   
   return {
     totalPredictions: newTotal,

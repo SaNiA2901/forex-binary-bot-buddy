@@ -114,11 +114,17 @@ export const usePerformance = (
     }
   }, [componentName]);
 
-  // Measure render performance on every render
+  // Optimized performance measurement to avoid cycles
   useEffect(() => {
     startMeasurement();
-    return endMeasurement;
-  });
+    
+    // Use timeout to avoid blocking the main thread
+    const timeout = setTimeout(() => {
+      endMeasurement();
+    }, 0);
+    
+    return () => clearTimeout(timeout);
+  }, [startMeasurement, endMeasurement]);
 
   // Performance optimization suggestions
   const getOptimizationSuggestions = useCallback(() => {
