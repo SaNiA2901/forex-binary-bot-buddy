@@ -1,6 +1,8 @@
 
-import { validateRequiredFields, validateNumericValues, validatePriceLogic } from './validation/candleValidators';
-import { sanitizeNumericInput } from './validation/inputSanitization';
+// LEGACY FILE - Use new CandleInputEngine for new code
+// This file maintained for backward compatibility only
+import { CandleValidationService } from '@/services/candle/CandleValidationService';
+import { CandleSecurityService } from '@/services/candle/CandleSecurityService';
 import { VALIDATION_CONSTANTS, VALID_TIMEFRAMES, CURRENCY_PAIR_REGEX, DATE_REGEX, TIME_REGEX } from './validation/validationConstants';
 
 interface CandleFormData {
@@ -17,37 +19,19 @@ interface ValidationResult {
   warnings?: string[];
 }
 
-export { sanitizeNumericInput };
+// Use new service for sanitization
+export const sanitizeNumericInput = CandleSecurityService.sanitizeNumericInput;
 
+/**
+ * @deprecated Use CandleValidationService.validateFormData instead
+ */
 export const validateFormData = (data: CandleFormData): ValidationResult => {
-  let errors: string[] = [];
-
-  // Проверка обязательных полей
-  errors = errors.concat(validateRequiredFields(data));
-  if (errors.length > 0) {
-    return { isValid: false, errors };
-  }
-
-  // Проверка числовых значений
-  errors = errors.concat(validateNumericValues(data));
-  if (errors.length > 0) {
-    return { isValid: false, errors };
-  }
-
-  // Проверка логики цен
-  const numericData = {
-    open: parseFloat(data.open),
-    high: parseFloat(data.high),
-    low: parseFloat(data.low),
-    close: parseFloat(data.close),
-    volume: parseFloat(data.volume)
-  };
-
-  errors = errors.concat(validatePriceLogic(numericData));
-
+  const result = CandleValidationService.validateFormData(data);
+  
   return {
-    isValid: errors.length === 0,
-    errors
+    isValid: result.isValid,
+    errors: result.errors.map(e => e.message),
+    warnings: result.warnings.map(w => w.message)
   };
 };
 
