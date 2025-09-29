@@ -1,3 +1,4 @@
+// UPDATED FOR NEW ENGINE COMPATIBILITY
 import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,16 +16,17 @@ import {
   BarChart3
 } from 'lucide-react';
 import { TradingSession } from '@/types/session';
+import { CandleFormData } from '@/services/candle/CandleInputCore';
 
 interface CandleInputFormProps {
   currentSession: TradingSession;
   pair: string;
-  formData: any;
-  errors: any;
+  formData: CandleFormData;
+  errors: Record<string, string>;
   isValid: boolean;
   isSubmitting: boolean;
-  onInputChange: (field: string, value: string) => void;
-  onSubmit: () => void;
+  onInputChange: (field: keyof CandleFormData, value: string) => void;
+  onSubmit: () => Promise<void>;
   onReset: () => void;
 }
 
@@ -64,9 +66,9 @@ export const CandleInputForm: React.FC<CandleInputFormProps> = ({
   const direction = getCandleDirection();
   const completionProgress = getCompletionProgress();
 
-  const handleSubmit = useCallback((e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit();
+    await onSubmit();
   }, [onSubmit]);
 
   return (
@@ -215,29 +217,16 @@ export const CandleInputForm: React.FC<CandleInputFormProps> = ({
           )}
         </div>
 
-        {/* Расширенные поля */}
+        {/* Расширенные поля - временно отключены */}
         {showAdvanced && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
             <div className="space-y-2">
-              <Label htmlFor="timestamp">Время свечи</Label>
-              <Input
-                id="timestamp"
-                type="datetime-local"
-                value={formData.timestamp}
-                onChange={(e) => onInputChange('timestamp', e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="spread">Спред</Label>
-              <Input
-                id="spread"
-                type="number"
-                step="0.00001"
-                value={formData.spread || ''}
-                onChange={(e) => onInputChange('spread', e.target.value)}
-                placeholder="Спред (опционально)"
-              />
+              <Label className="text-sm text-muted-foreground">
+                Расширенные настройки будут доступны в следующем обновлении
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Функции автоматического расчета спреда и временных меток
+              </p>
             </div>
           </div>
         )}

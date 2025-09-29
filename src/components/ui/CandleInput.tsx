@@ -1,5 +1,6 @@
 
-import { useMemo, memo } from 'react';
+// UPDATED TO USE NEW PROFESSIONAL ENGINE
+import { useMemo, memo, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { TradingSession, CandleData } from '@/types/session';
 import { calculateCandleDateTime } from '@/utils/dateTimeUtils';
@@ -11,7 +12,7 @@ import { CandleInputForm } from './candle-input/CandleInputForm';
 import CandleInputValidation from './candle-input/CandleInputValidation';
 import { CandleInputActions } from './candle-input/CandleInputActions';
 import { CandleInputStats } from './candle-input/CandleInputStats';
-import { useCandleInputLogic } from '@/hooks/candle/useCandleInputLogic';
+import { useCandleInputEngine } from '@/hooks/candle/useCandleInputEngine';
 
 interface CandleInputProps {
   currentSession: TradingSession;
@@ -53,14 +54,12 @@ const CandleInput = memo(({
     formData,
     errors,
     isSubmitting,
-    isFormValid,
-    lastCandle,
+    isValid,
     updateField,
-    handleSave,
-    handleDeleteLast,
+    save: engineSave,
     reset
-  } = useCandleInputLogic({
-    currentSession,
+  } = useCandleInputEngine({
+    session: currentSession,
     onCandleSaved: async (candleData) => {
       startMeasurement();
       try {
@@ -72,8 +71,23 @@ const CandleInput = memo(({
       } finally {
         endMeasurement();
       }
-    }
+    },
+    previousCandle: candles.length > 0 ? candles[candles.length - 1] : undefined
   });
+
+  const handleSave = useCallback(async () => {
+    const result = await engineSave(nextCandleIndex, nextCandleTime);
+    if (result.success) {
+      reset();
+    }
+  }, [engineSave, nextCandleIndex, nextCandleTime, reset]);
+
+  const lastCandle = useMemo(() => {
+    if (candles.length === 0) return null;
+    return candles.reduce((latest, current) => 
+      current.candle_index > latest.candle_index ? current : latest
+    );
+  }, [candles]);
 
   return (
     <Card className="p-6 bg-gradient-to-br from-card/80 to-card/50 border-border/50 backdrop-blur-sm animate-fade-in">
@@ -89,7 +103,7 @@ const CandleInput = memo(({
         pair={pair}
         formData={formData}
         errors={errors}
-        isValid={isFormValid}
+        isValid={isValid}
         isSubmitting={isSubmitting}
         onInputChange={updateField}
         onSubmit={handleSave}
@@ -98,7 +112,7 @@ const CandleInput = memo(({
 
       <CandleInputValidation
         errors={Object.values(errors).filter(Boolean) as string[]}
-        isFormValid={isFormValid}
+        isFormValid={isValid}
       />
 
       <CandleInputActions />
