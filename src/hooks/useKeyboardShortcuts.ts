@@ -1,97 +1,93 @@
-import { useEffect, useCallback } from 'react';
-import { useToast } from '@/hooks/use-toast';
+/**
+ * KEYBOARD SHORTCUTS HOOK
+ * Professional keyboard shortcuts management
+ */
 
-interface UseKeyboardShortcutsProps {
-  onSaveCandle?: () => void;
-  onDeleteLastCandle?: () => void;
-  onCreateSession?: () => void;
-  onExportData?: () => void;
+import { useEffect, useCallback, useRef } from 'react';
+import { secureLogger } from '@/utils/secureLogger';
+
+export interface KeyboardShortcut {
+  key: string;
+  ctrl?: boolean;
+  shift?: boolean;
+  alt?: boolean;
+  meta?: boolean;
+  description: string;
+  action: () => void | Promise<void>;
+  disabled?: boolean;
 }
 
-export const useKeyboardShortcuts = ({
-  onSaveCandle,
-  onDeleteLastCandle,
-  onCreateSession,
-  onExportData
-}: UseKeyboardShortcutsProps) => {
-  const { toast } = useToast();
+export interface UseKeyboardShortcutsOptions {
+  shortcuts: KeyboardShortcut[];
+  enabled?: boolean;
+  preventDefault?: boolean;
+  enableLogging?: boolean;
+}
 
-  const handleKeyPress = useCallback((event: KeyboardEvent) => {
-    // Игнорируем если активен input/textarea
-    if (event.target instanceof HTMLInputElement || 
-        event.target instanceof HTMLTextAreaElement) {
-      return;
-    }
+export function useKeyboardShortcuts({
+  shortcuts,
+  enabled = true,
+  preventDefault = true,
+  enableLogging = false
+}: UseKeyboardShortcutsOptions) {
+  const shortcutsRef = useRef(shortcuts);
+  
+  useEffect(() => {
+    shortcutsRef.current = shortcuts;
+  }, [shortcuts]);
 
-    const isCtrl = event.ctrlKey || event.metaKey;
-    const isShift = event.shiftKey;
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (!enabled) return;
 
-    switch (event.key.toLowerCase()) {
-      case 's':
-        if (isCtrl) {
+      const matchedShortcut = shortcutsRef.current.find(shortcut => {
+        if (shortcut.disabled) return false;
+
+        const keyMatches = event.key.toLowerCase() === shortcut.key.toLowerCase();
+        const ctrlMatches = shortcut.ctrl ? event.ctrlKey || event.metaKey : !event.ctrlKey && !event.metaKey;
+        const shiftMatches = shortcut.shift ? event.shiftKey : !event.shiftKey;
+        const altMatches = shortcut.alt ? event.altKey : !event.altKey;
+
+        return keyMatches && ctrlMatches && shiftMatches && altMatches;
+      });
+
+      if (matchedShortcut) {
+        if (preventDefault) {
           event.preventDefault();
-          onSaveCandle?.();
-          toast({
-            title: "Горячие клавиши",
-            description: "Ctrl+S - Сохранить свечу"
+          event.stopPropagation();
+        }
+
+        if (enableLogging) {
+          secureLogger.info('Keyboard shortcut triggered', {
+            key: matchedShortcut.key,
+            description: matchedShortcut.description
           });
         }
-        break;
-      
-      case 'z':
-        if (isCtrl && !isShift) {
-          event.preventDefault();
-          onDeleteLastCandle?.();
-          toast({
-            title: "Горячие клавиши", 
-            description: "Ctrl+Z - Удалить последнюю свечу"
-          });
-        }
-        break;
 
-      case 'n':
-        if (isCtrl) {
-          event.preventDefault();
-          onCreateSession?.();
-          toast({
-            title: "Горячие клавиши",
-            description: "Ctrl+N - Новая сессия"
-          });
+        try {
+          matchedShortcut.action();
+        } catch (error) {
+          secureLogger.error('Error executing keyboard shortcut', { error });
         }
-        break;
-
-      case 'e':
-        if (isCtrl && isShift) {
-          event.preventDefault();
-          onExportData?.();
-          toast({
-            title: "Горячие клавиши",
-            description: "Ctrl+Shift+E - Экспорт данных"
-          });
-        }
-        break;
-
-      case 'h':
-        if (isCtrl) {
-          event.preventDefault();
-          showHelpModal();
-        }
-        break;
-    }
-  }, [onSaveCandle, onDeleteLastCandle, onCreateSession, onExportData, toast]);
-
-  const showHelpModal = useCallback(() => {
-    toast({
-      title: "Горячие клавиши",
-      description: "Ctrl+S: Сохранить свечу\nCtrl+Z: Удалить последнюю\nCtrl+N: Новая сессия\nCtrl+Shift+E: Экспорт\nCtrl+H: Справка",
-      duration: 5000
-    });
-  }, [toast]);
+      }
+    },
+    [enabled, preventDefault, enableLogging]
+  );
 
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [handleKeyPress]);
+    if (!enabled) return;
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [enabled, handleKeyDown]);
 
-  return { showHelpModal };
-};
+  const getShortcutString = useCallback((shortcut: KeyboardShortcut): string => {
+    const parts: string[] = [];
+    if (shortcut.ctrl) parts.push('Ctrl');
+    if (shortcut.shift) parts.push('Shift');
+    if (shortcut.alt) parts.push('Alt');
+    parts.push(shortcut.key.toUpperCase());
+    return parts.join('+');
+  }, []);
+
+  return { getShortcutString };
+}

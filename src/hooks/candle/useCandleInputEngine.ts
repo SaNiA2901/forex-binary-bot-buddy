@@ -3,11 +3,13 @@
  * React integration for CandleInputEngine
  */
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { TradingSession, CandleData } from '@/types/session';
 import { CandleInputEngine, createCandleInputEngine } from '@/services/candle/CandleInputEngine';
 import { CandleFormData, SaveCandleResult } from '@/services/candle/CandleInputCore';
 import { ValidationResult } from '@/services/candle/CandleValidationService';
+import { CandleBusinessRules, BusinessRuleViolation } from '@/services/candle/CandleBusinessRules';
+import { CandleAutocompleteService, AutocompleteOption } from '@/services/candle/CandleAutocompleteService';
 import { useToast } from '@/hooks/use-toast';
 
 export interface UseCandleInputEngineProps {
@@ -17,17 +19,13 @@ export interface UseCandleInputEngineProps {
 }
 
 export interface CandleInputEngineState {
-  // Form state
   formData: CandleFormData;
   errors: Record<string, string>;
   isSubmitting: boolean;
   isValid: boolean;
-  
-  // Engine state
   canUndo: boolean;
   canRedo: boolean;
-  
-  // Actions
+  businessViolations: BusinessRuleViolation[];
   updateField: (field: keyof CandleFormData, value: string) => void;
   updateFormData: (data: Partial<CandleFormData>) => void;
   validateForm: () => ValidationResult;
@@ -36,6 +34,8 @@ export interface CandleInputEngineState {
   redo: () => Promise<void>;
   reset: () => void;
   clearHistory: () => void;
+  autocomplete: (field: keyof CandleFormData) => AutocompleteOption[];
+  autoFillAll: () => void;
 }
 
 export function useCandleInputEngine({
@@ -56,6 +56,8 @@ export function useCandleInputEngine({
   
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [businessViolations, setBusinessViolations] = useState<BusinessRuleViolation[]>([]);
+  const previousCandlesRef = useRef<CandleData[]>([]);
 
   // Create engine instance
   const engine = useMemo(() => {
@@ -80,44 +82,41 @@ export function useCandleInputEngine({
     });
   }, [session?.id, onCandleSaved]);
 
-  // Auto-fill open price from previous candle's close
   useEffect(() => {
     if (previousCandle && !formData.open && !isSubmitting) {
-      setFormData(prev => ({
-        ...prev,
-        open: previousCandle.close.toString()
-      }));
+      setFormData(prev => ({ ...prev, open: previousCandle.close.toString() }));
     }
-  }, [previousCandle?.close, formData.open, isSubmitting]);
+    if (previousCandle) {
+      previousCandlesRef.current = [...previousCandlesRef.current.slice(-49), previousCandle];
+    }
+  }, [previousCandle, formData.open, isSubmitting]);
 
   /**
    * Update single field with real-time validation
    */
   const updateField = useCallback((field: keyof CandleFormData, value: string) => {
-    // Update form data
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-
-    // Clear error for this field
+    setFormData(prev => ({ ...prev, [field]: value }));
     setErrors(prev => {
       const newErrors = { ...prev };
       delete newErrors[field];
       return newErrors;
     });
 
-    // Real-time field validation
     if (engine && value.trim()) {
       const fieldError = engine.validateField(field, value);
       if (fieldError) {
-        setErrors(prev => ({
-          ...prev,
-          [field]: fieldError
-        }));
+        setErrors(prev => ({ ...prev, [field]: fieldError }));
       }
     }
-  }, [engine]);
+
+    // Business rules validation
+    const currentCandle = { ...formData, [field]: value };
+    const violations = CandleBusinessRules.validateBusinessRules(
+      currentCandle as any,
+      { previousCandles: previousCandlesRef.current }
+    );
+    setBusinessViolations(violations);
+  }, [engine, formData]);
 
   /**
    * Update multiple fields at once
@@ -261,15 +260,12 @@ export function useCandleInputEngine({
     engine.clearHistory();
   }, [engine]);
 
-  // Check if form is valid
   const isValid = useMemo(() => {
-    return Object.keys(errors).length === 0 && 
-           formData.open.trim() !== '' &&
-           formData.high.trim() !== '' &&
-           formData.low.trim() !== '' &&
-           formData.close.trim() !== '' &&
-           formData.volume.trim() !== '';
-  }, [errors, formData]);
+    const hasNoErrors = Object.keys(errors).length === 0;
+    const hasAllFields = formData.open && formData.high && formData.low && formData.close && formData.volume;
+    const hasNoCriticalViolations = !businessViolations.some(v => v.severity === 'error');
+    return hasNoErrors && hasAllFields && hasNoCriticalViolations;
+  }, [errors, formData, businessViolations]);
 
   // Get undo/redo status
   const status = useMemo(() => {
@@ -277,18 +273,33 @@ export function useCandleInputEngine({
     return engine.getStatus();
   }, [engine, formData, isSubmitting]); // Re-check after operations
 
+  const getAutocomplete = useCallback((field: keyof CandleFormData) => {
+    const formDataRecord: Partial<Record<string, string>> = {
+      open: formData.open,
+      high: formData.high,
+      low: formData.low,
+      close: formData.close,
+      volume: formData.volume
+    };
+    return CandleAutocompleteService.getSuggestions(field, formDataRecord, previousCandlesRef.current);
+  }, [formData]);
+
+  const autoFillAll = useCallback(() => {
+    const autoFilled = CandleAutocompleteService.autoFillAllFields(previousCandlesRef.current);
+    if (autoFilled) {
+      setFormData(autoFilled);
+      toast({ title: 'Автозаполнение', description: 'Все поля заполнены' });
+    }
+  }, [toast]);
+
   return {
-    // Form state
     formData,
     errors,
     isSubmitting,
     isValid,
-    
-    // Engine state
     canUndo: status.canUndo,
     canRedo: status.canRedo,
-    
-    // Actions
+    businessViolations,
     updateField,
     updateFormData,
     validateForm,
@@ -296,6 +307,8 @@ export function useCandleInputEngine({
     undo,
     redo,
     reset,
-    clearHistory
+    clearHistory,
+    autocomplete: getAutocomplete,
+    autoFillAll
   };
 }
