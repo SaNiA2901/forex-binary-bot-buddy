@@ -37,6 +37,26 @@ export {
   type SecurityCheckResult
 } from './CandleSecurityService';
 
+// Business Rules
+export {
+  CandleBusinessRules,
+  type BusinessRuleViolation,
+  type BusinessRuleContext
+} from './CandleBusinessRules';
+
+// Autocomplete
+export {
+  CandleAutocompleteService,
+  type AutocompleteOption
+} from './CandleAutocompleteService';
+
+// Import/Export
+export {
+  CandleImportExportService,
+  type ImportResult,
+  type ExportOptions
+} from './CandleImportExportService';
+
 // Hook
 export {
   useCandleInputEngine,
