@@ -78,6 +78,7 @@ export const useNewApplicationState = () => {
 
     // Операции со свечами
     ...candleActions,
+    addCandle: candleActions.saveCandle, // Alias for compatibility
 
     // Удобные методы
     getLastCandle,

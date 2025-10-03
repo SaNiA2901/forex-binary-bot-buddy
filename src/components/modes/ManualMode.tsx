@@ -8,7 +8,8 @@ import { ManualPatterns } from "@/components/sections/ManualPatterns";
 import { ManualPredictions } from "@/components/sections/ManualPredictions";
 import { SessionCreator } from "@/components/ui/session/SessionCreator";
 import { SessionList } from "@/components/ui/session/SessionList";
-import { CandleDataInput } from "@/components/ui/candle/CandleDataInput";
+import { UnifiedCandleInput } from "@/components/ui/candle/UnifiedCandleInput";
+import { useStateManager } from "@/hooks/useStateManager";
 import { Database, BarChart3 } from "lucide-react";
 
 interface ManualModeProps {
@@ -16,108 +17,55 @@ interface ManualModeProps {
   timeframe?: string;
 }
 
-interface Session {
-  id: string;
-  session_name: string;
-  pair: string;
-  timeframe: string;
-  start_time: string;
-  created_at: string;
-  candles_count: number;
-  status: 'active' | 'paused' | 'completed';
-}
-
-interface CandleData {
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-  timestamp: string;
-}
-
 export function ManualMode({ pair = "EUR/USD", timeframe = "1h" }: ManualModeProps = {}) {
-  const [currentSession, setCurrentSession] = useState<Session | null>(null);
-  const [sessionCandles, setSessionCandles] = useState<CandleData[]>([]);
+  const { 
+    currentSession, 
+    candles, 
+    loadSessions,
+    loadSession,
+    createSession,
+    deleteSession,
+    setCurrentSession,
+    addCandle
+  } = useStateManager();
 
+  // Загружаем сессии при монтировании
   useEffect(() => {
-    // Загружаем последнюю активную сессию при монтировании
-    const sessions = JSON.parse(localStorage.getItem('trading_sessions') || '[]');
-    const activeSession = sessions.find((s: Session) => s.status === 'active');
-    if (activeSession) {
-      setCurrentSession(activeSession);
-      loadSessionCandles(activeSession.id);
+    loadSessions().catch(console.error);
+  }, [loadSessions]);
+
+  const handleSessionCreated = async (sessionData: any) => {
+    try {
+      await createSession(sessionData);
+    } catch (error) {
+      console.error('Failed to create session:', error);
     }
-  }, []);
-
-  const loadSessionCandles = (sessionId: string) => {
-    const candles = JSON.parse(localStorage.getItem(`session_candles_${sessionId}`) || '[]');
-    setSessionCandles(candles);
   };
 
-  const handleSessionCreated = (session: Session) => {
-    setCurrentSession(session);
-    setSessionCandles([]);
-  };
-
-  const handleSessionSelect = (session: Session) => {
-    setCurrentSession(session);
-    loadSessionCandles(session.id);
-  };
-
-  const handleSessionDelete = (sessionId: string) => {
-    if (currentSession?.id === sessionId) {
-      setCurrentSession(null);
-      setSessionCandles([]);
+  const handleSessionSelect = async (session: any) => {
+    try {
+      await loadSession(session.id);
+    } catch (error) {
+      console.error('Failed to load session:', error);
     }
-    // Удаляем данные свечей сессии
-    localStorage.removeItem(`session_candles_${sessionId}`);
   };
 
-  const getNextCandleTime = () => {
-    if (!currentSession) return new Date().toISOString();
-    
-    if (sessionCandles.length === 0) {
-      return currentSession.start_time;
+  const handleSessionDelete = async (sessionId: string) => {
+    try {
+      await deleteSession(sessionId);
+    } catch (error) {
+      console.error('Failed to delete session:', error);
     }
-
-    const lastCandle = sessionCandles[sessionCandles.length - 1];
-    const lastTime = new Date(lastCandle.timestamp);
-    
-    // Добавляем интервал в зависимости от таймфрейма
-    const timeframeMinutes = {
-      '1m': 1,
-      '5m': 5,
-      '15m': 15,
-      '30m': 30,
-      '1h': 60,
-      '4h': 240,
-      '1d': 1440
-    };
-
-    const minutes = timeframeMinutes[currentSession.timeframe as keyof typeof timeframeMinutes] || 1;
-    lastTime.setMinutes(lastTime.getMinutes() + minutes);
-    
-    return lastTime.toISOString();
   };
 
-  const handleCandleAdded = (candle: CandleData) => {
+  const handleCandleSaved = async (candleData: any) => {
     if (!currentSession) return;
-
-    const updatedCandles = [...sessionCandles, candle];
-    setSessionCandles(updatedCandles);
     
-    // Сохраняем свечи в localStorage
-    localStorage.setItem(`session_candles_${currentSession.id}`, JSON.stringify(updatedCandles));
-    
-    // Обновляем счетчик свечей в сессии
-    const sessions = JSON.parse(localStorage.getItem('trading_sessions') || '[]');
-    const updatedSessions = sessions.map((s: Session) => 
-      s.id === currentSession.id ? { ...s, candles_count: updatedCandles.length } : s
-    );
-    localStorage.setItem('trading_sessions', JSON.stringify(updatedSessions));
-    
-    setCurrentSession(prev => prev ? { ...prev, candles_count: updatedCandles.length } : null);
+    try {
+      await addCandle(candleData);
+    } catch (error) {
+      console.error('Failed to add candle:', error);
+    }
   };
 
   if (!currentSession) {
@@ -132,7 +80,7 @@ export function ManualMode({ pair = "EUR/USD", timeframe = "1h" }: ManualModePro
 
         <SessionCreator onSessionCreated={handleSessionCreated} />
         <SessionList 
-          currentSession={currentSession}
+          currentSession={null}
           onSessionSelect={handleSessionSelect}
           onSessionDelete={handleSessionDelete}
         />
@@ -150,15 +98,15 @@ export function ManualMode({ pair = "EUR/USD", timeframe = "1h" }: ManualModePro
           </p>
         </div>
         <div className="text-sm text-muted-foreground">
-          Свечей: {sessionCandles.length}
+          Свечей: {candles.length}
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <CandleDataInput 
+        <UnifiedCandleInput 
           session={currentSession}
-          onCandleAdded={handleCandleAdded}
-          nextCandleTime={getNextCandleTime()}
+          candles={candles}
+          onCandleSaved={handleCandleSaved}
         />
         <SessionList 
           currentSession={currentSession}

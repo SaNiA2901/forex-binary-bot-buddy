@@ -4,26 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Play, Pause, Calendar, BarChart3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-interface Session {
-  id: string;
-  session_name: string;
-  pair: string;
-  timeframe: string;
-  start_time: string;
-  created_at: string;
-  candles_count: number;
-  status: 'active' | 'paused' | 'completed';
-}
+import { TradingSession } from "@/types/session";
 
 interface SessionListProps {
-  currentSession: Session | null;
-  onSessionSelect: (session: Session) => void;
+  currentSession: TradingSession | null;
+  onSessionSelect: (session: TradingSession) => void;
   onSessionDelete: (sessionId: string) => void;
 }
 
 export function SessionList({ currentSession, onSessionSelect, onSessionDelete }: SessionListProps) {
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessions, setSessions] = useState<TradingSession[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -49,21 +39,13 @@ export function SessionList({ currentSession, onSessionSelect, onSessionDelete }
     });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-trading-success text-white';
-      case 'paused': return 'bg-trading-warning text-white';
-      case 'completed': return 'bg-muted text-muted-foreground';
-      default: return 'bg-muted text-muted-foreground';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'active': return 'Активна';
-      case 'paused': return 'Приостановлена';
-      case 'completed': return 'Завершена';
-      default: return 'Неизвестно';
+  const getCandlesCount = (sessionId: string): number => {
+    const candles = localStorage.getItem(`session_candles_${sessionId}`);
+    if (!candles) return 0;
+    try {
+      return JSON.parse(candles).length;
+    } catch {
+      return 0;
     }
   };
 
@@ -116,8 +98,8 @@ export function SessionList({ currentSession, onSessionSelect, onSessionDelete }
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <h4 className="font-medium text-foreground">{session.session_name}</h4>
-                    <Badge className={getStatusColor(session.status)}>
-                      {getStatusText(session.status)}
+                    <Badge variant="outline" className="text-xs">
+                      Активна
                     </Badge>
                   </div>
                   
@@ -127,7 +109,7 @@ export function SessionList({ currentSession, onSessionSelect, onSessionDelete }
                       <span>•</span>
                       <span>{session.timeframe}</span>
                       <span>•</span>
-                      <span>{session.candles_count} свечей</span>
+                      <span>{getCandlesCount(session.id)} свечей</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Calendar className="h-3 w-3" />

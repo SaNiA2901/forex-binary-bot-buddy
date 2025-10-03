@@ -1,9 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { ModernLayout } from "@/components/layout/ModernLayout";
 import { OnlineMode } from "@/components/modes/OnlineMode";
 import { ManualMode } from "@/components/modes/ManualMode";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingUp, LineChart } from "lucide-react";
+import { isPreviewEnvironment } from "@/utils/previewOptimization";
+
+// Lazy load heavy components for preview optimization
+const PreviewOptimizedDashboard = lazy(() => 
+  import("@/components/ui/enhanced/PreviewOptimizedDashboard").then(m => ({ default: m.PreviewOptimizedDashboard }))
+);
 
 // Подразделы для онлайн режима
 import { OnlineCharts } from "@/components/sections/OnlineCharts";
@@ -28,6 +34,7 @@ export default function Index() {
   const [activeSubsection, setActiveSubsection] = useState("");
   const [selectedPair, setSelectedPair] = useState("EUR/USD");
   const [timeframe, setTimeframe] = useState("1h");
+  const isPreview = isPreviewEnvironment();
 
   // Инициализация из localStorage
   useEffect(() => {
@@ -79,6 +86,15 @@ export default function Index() {
 
   // Функция для рендера активного контента
   const renderActiveContent = () => {
+    // В Preview режиме показываем оптимизированную версию
+    if (isPreview && !activeSubsection) {
+      return (
+        <Suspense fallback={<div className="text-center p-12">Загрузка...</div>}>
+          <PreviewOptimizedDashboard />
+        </Suspense>
+      );
+    }
+
     // Если выбраны настройки
     if (activeSubsection === "settings") {
       return <SettingsPage />;
