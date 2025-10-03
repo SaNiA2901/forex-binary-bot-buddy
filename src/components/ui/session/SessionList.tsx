@@ -98,9 +98,11 @@ export function SessionList({ currentSession, onSessionSelect, onSessionDelete }
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <h4 className="font-medium text-foreground">{session.session_name}</h4>
-                    <Badge variant="outline" className="text-xs">
-                      Активна
-                    </Badge>
+                    {currentSession?.id === session.id && (
+                      <Badge variant="default" className="text-xs bg-trading-success">
+                        Текущая сессия
+                      </Badge>
+                    )}
                   </div>
                   
                   <div className="text-sm text-muted-foreground space-y-1">
@@ -119,11 +121,6 @@ export function SessionList({ currentSession, onSessionSelect, onSessionDelete }
                 </div>
 
                 <div className="flex items-center gap-2 ml-4">
-                  {currentSession?.id === session.id && (
-                    <Badge variant="outline" className="text-xs">
-                      Активна
-                    </Badge>
-                  )}
                   <Button
                     variant="outline"
                     size="sm"

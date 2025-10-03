@@ -161,33 +161,38 @@ export function ModernSidebar() {
   };
 
   const handleNavigation = (path: string) => {
+    let newMode = activeMode;
+    let newSubsection = activeSubsection;
+
     if (path === '/') {
-      setActiveMode('online');
-      setActiveSubsection('');
-      localStorage.setItem('active-mode', 'online');
-      localStorage.setItem('active-subsection', '');
+      newMode = 'online';
+      newSubsection = '';
     } else if (path === '/manual') {
-      setActiveMode('manual');
-      setActiveSubsection('');
-      localStorage.setItem('active-mode', 'manual');
-      localStorage.setItem('active-subsection', '');
+      newMode = 'manual';
+      newSubsection = '';
     } else if (path.startsWith('/online/')) {
-      const subsection = path.replace('/online/', '');
-      setActiveMode('online');
-      setActiveSubsection(subsection);
-      localStorage.setItem('active-mode', 'online');
-      localStorage.setItem('active-subsection', subsection);
+      newMode = 'online';
+      newSubsection = path.replace('/online/', '');
     } else if (path.startsWith('/manual/')) {
-      const subsection = path.replace('/manual/', '');
-      setActiveMode('manual');
-      setActiveSubsection(subsection);
-      localStorage.setItem('active-mode', 'manual');
-      localStorage.setItem('active-subsection', subsection);
+      newMode = 'manual';
+      newSubsection = path.replace('/manual/', '');
+    } else if (path === '/settings') {
+      newSubsection = 'settings';
+    }
+    
+    setActiveMode(newMode);
+    setActiveSubsection(newSubsection);
+    
+    try {
+      localStorage.setItem('active-mode', newMode);
+      localStorage.setItem('active-subsection', newSubsection);
+    } catch (error) {
+      console.error('Failed to save navigation state:', error);
     }
     
     // Отправляем событие для обновления основного компонента
     window.dispatchEvent(new CustomEvent('navigation-change', { 
-      detail: { mode: activeMode, subsection: activeSubsection } 
+      detail: { mode: newMode, subsection: newSubsection } 
     }));
   };
 

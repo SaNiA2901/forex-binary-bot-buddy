@@ -118,13 +118,15 @@ export const usePerformance = (
   useEffect(() => {
     startMeasurement();
     
-    // Use timeout to avoid blocking the main thread
+    // Use timeout to avoid blocking the main thread and prevent infinite loops
     const timeout = setTimeout(() => {
       endMeasurement();
     }, 0);
     
     return () => clearTimeout(timeout);
-  }, [startMeasurement, endMeasurement]);
+    // Only run on mount to avoid infinite re-renders
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Performance optimization suggestions
   const getOptimizationSuggestions = useCallback(() => {
