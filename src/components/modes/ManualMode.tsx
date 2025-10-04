@@ -15,9 +15,10 @@ import { Database, BarChart3 } from "lucide-react";
 interface ManualModeProps {
   pair?: string;
   timeframe?: string;
+  subsection?: string;
 }
 
-export function ManualMode({ pair = "EUR/USD", timeframe = "1h" }: ManualModeProps = {}) {
+export function ManualMode({ pair = "EUR/USD", timeframe = "1h", subsection = "" }: ManualModeProps = {}) {
   const { 
     currentSession, 
     candles, 
@@ -29,10 +30,20 @@ export function ManualMode({ pair = "EUR/USD", timeframe = "1h" }: ManualModePro
     addCandle
   } = useStateManager();
 
+  // Активная вкладка (синхронизируется с subsection)
+  const [activeTab, setActiveTab] = useState<string>(subsection || "charts");
+
   // Загружаем сессии при монтировании
   useEffect(() => {
     loadSessions().catch(console.error);
   }, [loadSessions]);
+
+  // Синхронизация вкладки с subsection
+  useEffect(() => {
+    if (subsection) {
+      setActiveTab(subsection);
+    }
+  }, [subsection]);
 
   const handleSessionCreated = async (sessionData: any) => {
     try {
@@ -88,6 +99,34 @@ export function ManualMode({ pair = "EUR/USD", timeframe = "1h" }: ManualModePro
     );
   }
 
+  // Если выбран подраздел из sidebar - показываем только его
+  if (subsection && subsection !== "") {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Ручной режим</h1>
+            <p className="text-muted-foreground">
+              {currentSession ? `Сессия: ${currentSession.session_name} • ${currentSession.pair} • ${currentSession.timeframe}` : 'Выберите сессию'}
+            </p>
+          </div>
+          {currentSession && (
+            <div className="text-sm text-muted-foreground">
+              Свечей: {candles.length}
+            </div>
+          )}
+        </div>
+
+        {subsection === "charts" && <ManualCharts pair={pair} timeframe={timeframe} />}
+        {subsection === "analytics" && <ManualAnalytics pair={pair} timeframe={timeframe} />}
+        {subsection === "indicators" && <ManualIndicators pair={pair} timeframe={timeframe} />}
+        {subsection === "patterns" && <ManualPatterns pair={pair} timeframe={timeframe} />}
+        {subsection === "predictions" && <ManualPredictions pair={pair} timeframe={timeframe} />}
+      </div>
+    );
+  }
+
+  // Основной вид с табами (когда нет активного подраздела из sidebar)
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -115,7 +154,7 @@ export function ManualMode({ pair = "EUR/USD", timeframe = "1h" }: ManualModePro
         />
       </div>
 
-      <Tabs defaultValue="charts" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid grid-cols-5 w-full">
           <TabsTrigger value="charts">Графики</TabsTrigger>
           <TabsTrigger value="analytics">Аналитика</TabsTrigger>

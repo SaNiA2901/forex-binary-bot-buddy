@@ -2,8 +2,6 @@ import { useState, useEffect, lazy, Suspense } from "react";
 import { ModernLayout } from "@/components/layout/ModernLayout";
 import { OnlineMode } from "@/components/modes/OnlineMode";
 import { ManualMode } from "@/components/modes/ManualMode";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, LineChart } from "lucide-react";
 import { isPreviewEnvironment } from "@/utils/previewOptimization";
 
 // Lazy load heavy components for preview optimization
@@ -18,13 +16,6 @@ import { OnlineIndicators } from "@/components/sections/OnlineIndicators";
 import { OnlinePatterns } from "@/components/sections/OnlinePatterns";
 import { OnlinePredictions } from "@/components/sections/OnlinePredictions";
 import { OnlineSources } from "@/components/sections/OnlineSources";
-
-// Подразделы для ручного режима
-import { ManualCharts } from "@/components/sections/ManualCharts";
-import { ManualAnalytics } from "@/components/sections/ManualAnalytics";
-import { ManualIndicators } from "@/components/sections/ManualIndicators";
-import { ManualPatterns } from "@/components/sections/ManualPatterns";
-import { ManualPredictions } from "@/components/sections/ManualPredictions";
 
 // Настройки
 import { SettingsPage } from "@/components/sections/SettingsPage";
@@ -120,22 +111,9 @@ export default function Index() {
       }
     }
 
-    // Подразделы ручного режима
+    // Ручной режим с подразделами
     if (activeMode === "manual") {
-      switch (activeSubsection) {
-        case "charts":
-          return <ManualCharts pair={selectedPair} timeframe={timeframe} />;
-        case "analytics":
-          return <ManualAnalytics pair={selectedPair} timeframe={timeframe} />;
-        case "indicators":
-          return <ManualIndicators pair={selectedPair} timeframe={timeframe} />;
-        case "patterns":
-          return <ManualPatterns pair={selectedPair} timeframe={timeframe} />;
-        case "predictions":
-          return <ManualPredictions pair={selectedPair} timeframe={timeframe} />;
-        default:
-          return <ManualMode pair={selectedPair} timeframe={timeframe} />;
-      }
+      return <ManualMode pair={selectedPair} timeframe={timeframe} subsection={activeSubsection} />;
     }
 
     return <OnlineMode />;
@@ -148,44 +126,7 @@ export default function Index() {
       timeframe={timeframe}
       onTimeframeChange={setTimeframe}
     >
-      <div className="space-y-6">
-        {/* Показываем табы только если нет активного подраздела */}
-        {!activeSubsection && (
-          <Tabs value={activeMode} onValueChange={handleModeChange} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-muted/30 p-1">
-              <TabsTrigger 
-                value="online" 
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                <TrendingUp className="h-4 w-4 mr-2" />
-                Онлайн режим
-              </TabsTrigger>
-              <TabsTrigger 
-                value="manual" 
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                <LineChart className="h-4 w-4 mr-2" />
-                Ручной режим
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="online" className="mt-6">
-              <OnlineMode />
-            </TabsContent>
-
-            <TabsContent value="manual" className="mt-6">
-              <ManualMode pair={selectedPair} timeframe={timeframe} />
-            </TabsContent>
-          </Tabs>
-        )}
-
-        {/* Показываем активный контент, если выбран подраздел */}
-        {activeSubsection && (
-          <div className="space-y-6">
-            {renderActiveContent()}
-          </div>
-        )}
-      </div>
+      {renderActiveContent()}
     </ModernLayout>
   );
 }
