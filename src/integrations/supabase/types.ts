@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
@@ -27,7 +27,8 @@ export type Database = {
           prediction_confidence: number | null
           prediction_direction: string | null
           prediction_probability: number | null
-          session_id: string | null
+          session_id: string
+          spread: number | null
           volume: number
         }
         Insert: {
@@ -42,8 +43,9 @@ export type Database = {
           prediction_confidence?: number | null
           prediction_direction?: string | null
           prediction_probability?: number | null
-          session_id?: string | null
-          volume: number
+          session_id: string
+          spread?: number | null
+          volume?: number
         }
         Update: {
           candle_datetime?: string
@@ -57,19 +59,13 @@ export type Database = {
           prediction_confidence?: number | null
           prediction_direction?: string | null
           prediction_probability?: number | null
-          session_id?: string | null
+          session_id?: string
+          spread?: number | null
           volume?: number
         }
         Relationships: [
           {
             foreignKeyName: "candle_data_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "trading_sessions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_candle_session"
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "trading_sessions"
@@ -88,6 +84,7 @@ export type Database = {
           start_time: string
           timeframe: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -99,6 +96,7 @@ export type Database = {
           start_time: string
           timeframe: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -110,6 +108,28 @@ export type Database = {
           start_time?: string
           timeframe?: string
           updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          created_at: string
+          email: string
+          id: number
+          name: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: number
+          name?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: number
+          name?: string | null
         }
         Relationships: []
       }
